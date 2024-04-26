@@ -1,8 +1,8 @@
-defprotocol ExDataMapper2.DataMapProtocol do
+defprotocol ExDataMapper.DataMapProtocol do
   def map_for(from, to)
 end
 
-defimpl ExDataMapper2.DataMapProtocol, for: Any do
+defimpl ExDataMapper.DataMapProtocol, for: Any do
   defmacro __deriving__(module, _struct, opts) do
     to_struct = opts[:to].__struct__
     mapping_rules = opts[:mapping_rules]
@@ -10,9 +10,9 @@ defimpl ExDataMapper2.DataMapProtocol, for: Any do
     quote do
       unquote(to_struct)
 
-      defimpl ExDataMapper2.DataMapProtocol, for: unquote(module) do
+      defimpl ExDataMapper.DataMapProtocol, for: unquote(module) do
         def map_for(from, %to_struct{} = to) do
-          ExDataMapper2.new_map_for(from, to, unquote(mapping_rules))
+          ExDataMapper.new_map_for(from, to, unquote(mapping_rules))
         end
       end
     end
