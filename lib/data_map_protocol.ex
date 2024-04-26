@@ -2,24 +2,28 @@ defprotocol ExDataMapper2.DataMapProtocol do
   def map_for(from, to)
 end
 
-defmodule MyUser do
-  defstruct name: nil, age: nil, address_line: nil
-end
+defimpl ExDataMapper2.DataMapProtocol, for: Any do
+  defmacro __deriving__(module, _struct, opts) do
+    to_struct = opts[:to].__struct__
+    mapping_rules = opts[:mapping_rules]
 
-defmodule ExternalUser do
-  defstruct full_name: nil, how_old: nil, address_line: nil
-end
+    quote do
+      unquote(to_struct)
 
-defimpl ExDataMapper2.DataMapProtocol, for: MyUser do
-  defp upcase(value), do: String.upcase(value)
+      defimpl ExDataMapper2.DataMapProtocol, for: unquote(module) do
+        def map_for(from, %to_struct{} = to) do
+          ExDataMapper2.new_map_for(from, to, unquote(mapping_rules))
+        end
+      end
+    end
+  end
 
-  def map_for(from, %ExternalUser{} = to) do
-    rules = [
-      :address_line,
-      {:name, {:full_name, &upcase/1}},
-      age: :how_old
-    ]
-
-    ExDataMapper2.new_map_for(from, to, rules)
+  def map_for(from, _to) do
+    raise Protocol.UndefinedError,
+      protocol: @protocol,
+      value: from,
+      description: """
+      ExDataMapper2.DataMapProtocol protocol must always be explicitly implemented.
+      """
   end
 end
