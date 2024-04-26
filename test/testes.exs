@@ -28,6 +28,38 @@ mappings = [
 data
 |> ExDataMapper2.map(mappings)
 
+# #######################################################
+
+defmodule MyUser2 do
+  @to_external_user_mapping_rules [age: :how_old]
+
+  @derive {ExDataMapper2.DataMapProtocol,
+           [to: %ExternalUser{}, mapping_rules: @to_external_user_mapping_rules]}
+  defstruct age: nil
+end
+
+defmodule MyUser do
+  defstruct name: nil, age: nil, address_line: nil
+end
+
+defmodule ExternalUser do
+  defstruct full_name: nil, how_old: nil, address_line: nil
+end
+
+defimpl ExDataMapper2.DataMapProtocol, for: MyUser do
+  defp upcase(value), do: String.upcase(value)
+
+  def map_for(from, %ExternalUser{} = to) do
+    rules = [
+      :address_line,
+      {:name, {:full_name, &upcase/1}},
+      age: :how_old
+    ]
+
+    ExDataMapper2.new_map_for(from, to, rules)
+  end
+end
+
 # ########################################################
 
 my_user_data = %{
