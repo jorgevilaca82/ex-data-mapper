@@ -10,24 +10,16 @@ defmodule ExternalUser do
   defstruct full_name: nil, how_old: nil, address_line: nil
 end
 
-defimpl ExDataMapper2.DataMapProtocol, for: ExternalUser do
+defimpl ExDataMapper2.DataMapProtocol, for: MyUser do
   defp upcase(value), do: String.upcase(value)
 
-  def map_for(from, %MyUser{} = to) do
-    {Map.from_struct(from),
-     [
-       :address_line,
-       {:full_name, {:name, &upcase/1}}
-     ]}
+  def map_for(from, %ExternalUser{} = to) do
+    rules = [
+      :address_line,
+      {:name, {:full_name, &upcase/1}},
+      age: :how_old
+    ]
+
+    ExDataMapper2.new_map_for(from, to, rules)
   end
 end
-
-external_data = %{
-  full_name: "my full name",
-  how_old: "42",
-  address_line: "some address line 123"
-}
-
-struct(ExternalUser, external_data)
-|> ExDataMapper2.DataMapProtocol.map_for(%MyUser{})
-|> ExDataMapper2.map()
