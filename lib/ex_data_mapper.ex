@@ -1,47 +1,60 @@
 defmodule ExDataMapper do
-  @moduledoc """
-  Documentation for `ExDataMapper`.
-  """
+  def new_map_for(from, to, mapping_rules) do
+    {
+      %{from: from, to: to},
+      mapping_rules
+    }
+  end
 
-  @doc """
-  Maps data.
+  def map({%{from: from, to: to}, mappings}) when is_struct(from) do
+    from
+    |> Map.from_struct()
+    |> do_map(mappings)
+    |> then(fn mapped_data ->
+      struct(to.__struct__, mapped_data)
+    end)
+  end
 
-  ## Examples
+  def map({data, mappings}), do: do_map(data, mappings)
 
-      iex> data = %{name: "Jhon"}
-      iex> mappings = %{name: :login}
-      iex> ExDataMapper.map(mappings, data)
-      %{login: "Jhon"}
+  def map(data, mappings) when is_map(data), do: do_map(data, mappings)
 
-  """
-  @spec map(map(), map()) :: map()
-  def map(mappings, data) do
-    for {key, new_key_defs} <- mappings, into: %{} do
-      {new_key, map_or_op} = normalize_new_key_defs(key, new_key_defs)
+  defp do_map(data, mappings) when is_list(mappings) do
+    for map_def <- mappings, key_is_present(map_def, data), into: %{} do
+      key = get_key(map_def)
 
-      if Map.has_key?(data, key) do
-        value = data[key]
-        transform(value, new_key, map_or_op, data)
-      end
+      transform(map_def, data[key])
     end
   end
 
-  defp normalize_new_key_defs(current_key, new_key_defs) do
-    case new_key_defs do
-      nil -> {current_key, nil}
-      new_key when is_atom(new_key) -> {new_key, nil}
-      op when is_function(op) -> {current_key, op}
-      {nil, op} when is_function(op) -> {current_key, op}
-      {new_key, op} when is_function(op) -> {new_key, op}
-      {nil, map} when is_map(map) -> {current_key, map}
-      {new_key, map} when is_map(map) -> {new_key, map}
-    end
+  def key_is_present(map_def, data) do
+    Map.has_key?(data, get_key(map_def))
   end
 
-  defp transform(value, new_key, nil, _), do: {new_key, value}
+  defp get_key({key, _}), do: key
+  defp get_key(key), do: key
 
-  defp transform(value, new_key, op, original_data) when is_function(op),
-    do: {new_key, op.(value, original_data)}
+  defp transform({key, map_def}, current_value)
+       when is_list(map_def) and is_map(current_value),
+       do: {key, do_map(current_value, map_def)}
 
-  defp transform(value, new_key, map, _) when is_map(map), do: {new_key, map(map, value)}
+  defp transform({_key, {new_key, map_def}}, current_value)
+       when is_map(current_value),
+       do: {new_key, do_map(current_value, map_def)}
+
+  defp transform({_key, {new_key, op}}, current_value)
+       when is_atom(new_key) and is_function(op),
+       do: {new_key, op.(current_value)}
+
+  defp transform({key, op}, current_value)
+       when is_function(op),
+       do: {key, op.(current_value)}
+
+  defp transform({_key, new_key}, current_value)
+       when is_atom(new_key),
+       do: {new_key, current_value}
+
+  defp transform(key, current_value)
+       when is_atom(key),
+       do: {key, current_value}
 end
