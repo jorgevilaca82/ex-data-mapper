@@ -19,6 +19,10 @@ defmodule ExDataMapper do
 
   def map(data, mappings) when is_map(data), do: do_map(data, mappings)
 
+  defp do_map(data, op) when is_function(op) do
+    op.(data)
+  end
+
   defp do_map(data, mappings) when is_list(mappings) do
     for map_def <- mappings, key_is_present(map_def, data), into: %{} do
       key = get_key(map_def)
