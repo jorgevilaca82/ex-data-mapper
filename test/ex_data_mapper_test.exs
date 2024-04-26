@@ -3,82 +3,62 @@ defmodule ExDataMapperTest do
   doctest ExDataMapper
 
   test "preserve key and do no transformation" do
-    data = %{name: "Jhon"}
-    mappings = %{name: nil}
+    # Arrange
+    data = %{name: "Jhon", age: 40}
+    mapping_rules = [:name]
 
-    new_data = ExDataMapper.map(mappings, data)
+    # Act
+    new_data = data |> ExDataMapper.map(mapping_rules)
 
+    # Assert
     assert new_data == %{name: "Jhon"}
+    # should have only keys specified on mapping rules
+    assert not Map.has_key?(new_data, :age)
   end
 
-  test "preserve key and do no transformation, ignore keys not in mappings" do
-    data = %{name: "Jhon", date_of_birth: ~c"1980-01-01"}
-    mappings = %{name: nil}
+  test "map key to a new key" do
+    # Arrange
+    data = %{name: "Jhon", age: 40}
+    mapping_rules = [:age, name: :full_name]
 
-    new_data = ExDataMapper.map(mappings, data)
+    # Act
+    new_data = data |> ExDataMapper.map(mapping_rules)
 
-    assert new_data == %{name: "Jhon"}
+    # Assert
+    assert new_data == %{full_name: "Jhon", age: 40}
   end
 
-  test "map simple atom key" do
-    data = %{name: "Jhon"}
-    mappings = %{name: :login}
+  test "transform value and preserve key with a transformation function" do
+    # Arrange
+    data = %{name: "Jhon", age: 40}
+    mapping_rules = [:age, name: &String.upcase/1]
 
-    new_data = ExDataMapper.map(mappings, data)
+    # Act
+    new_data = data |> ExDataMapper.map(mapping_rules)
 
-    assert new_data == %{login: "Jhon"}
+    # Assert
+    assert new_data == %{name: "JHON", age: 40}
   end
 
-  test "transform value and preserve key passing function" do
-    data = %{name: "Jhon"}
-
-    mappings = %{name: fn value, _ -> String.upcase(value) end}
-
-    new_data = ExDataMapper.map(mappings, data)
-
-    assert new_data == %{name: "JHON"}
-  end
-
-  test "transform value and preserve key passing a tuple param" do
-    data = %{name: "Jhon"}
-
-    mappings = %{name: {nil, fn value, _ -> String.upcase(value) end}}
-
-    new_data = ExDataMapper.map(mappings, data)
-
-    assert new_data == %{name: "JHON"}
-  end
-
-  test "transform value and update key" do
+  test "transform value and rename key with a transformation function" do
+    # Arrange
     data = %{name: "Jhon", date_of_birth: "1980-01-01"}
 
-    mappings = %{
-      name: {:login, fn value, _ -> String.upcase(value) end},
-      date_of_birth: {:dob, fn value, _ -> Date.from_iso8601!(value) end}
-    }
+    mapping_rules = [
+      :age,
+      {:name, {:full_name, &String.upcase/1}},
+      date_of_birth: &Date.from_iso8601!/1
+    ]
 
-    new_data = ExDataMapper.map(mappings, data)
+    # Act
+    new_data = data |> ExDataMapper.map(mapping_rules)
 
-    assert new_data == %{login: "JHON", dob: ~D[1980-01-01]}
+    # Assert
+    assert new_data == %{full_name: "JHON", date_of_birth: ~D[1980-01-01]}
   end
 
-  test "combine two or more values to form a new field" do
-    data = %{first_name: "Jhon", last_name: "Doe"}
-
-    mappings = %{
-      first_name:
-        {:full_name,
-         fn value, %{last_name: last_name} = _original_data ->
-           "#{value} #{last_name}"
-         end}
-    }
-
-    new_data = ExDataMapper.map(mappings, data)
-
-    assert new_data == %{full_name: "Jhon Doe"}
-  end
-
-  test "map inner attributes" do
+  test "simple map of preserve inner maps" do
+    # Arrange
     data = %{
       name: "Jhon",
       address: %{
@@ -90,34 +70,25 @@ defmodule ExDataMapperTest do
       }
     }
 
-    mappings = %{
-      name: nil,
-      address:
-        {:full_address,
-         %{
-           address: :line_address_1,
-           city: nil,
-           province: :state,
-           country: nil,
-           postalCode: :postalNumber
-         }}
-    }
+    mapping_rules = [:address]
 
-    new_data = ExDataMapper.map(mappings, data) |> IO.inspect()
+    # Act
+    new_data = data |> ExDataMapper.map(mapping_rules)
 
+    # Assert
     assert new_data == %{
-             name: "Jhon",
-             full_address: %{
-               state: "Big County",
+             address: %{
+               address: "1st Street",
                city: "Big City",
+               province: "Big County",
                country: "CA",
-               line_address_1: "1st Street",
-               postalNumber: "000-000"
+               postalCode: "000-000"
              }
            }
   end
 
-  test "combine inner attributes" do
+  test "simple map rename key and preserve inner map" do
+    # Arrange
     data = %{
       name: "Jhon",
       address: %{
@@ -129,26 +100,84 @@ defmodule ExDataMapperTest do
       }
     }
 
-    mappings = %{
-      name: nil,
-      address:
-        {:full_address,
-         fn %{
-              address: address,
-              city: city,
-              province: province,
-              country: country,
-              postalCode: postalCode
-            }, _ ->
-           "#{address}, #{city}-#{province}, #{country}, #{postalCode}"
-         end}
-    }
+    mapping_rules = [address: :location]
 
-    new_data = ExDataMapper.map(mappings, data) |> IO.inspect()
+    # Act
+    new_data = data |> ExDataMapper.map(mapping_rules)
 
+    # Assert
     assert new_data == %{
-             name: "Jhon",
-             full_address: "1st Street, Big City-Big County, CA, 000-000"
+             location: %{
+               address: "1st Street",
+               city: "Big City",
+               province: "Big County",
+               country: "CA",
+               postalCode: "000-000"
+             }
            }
   end
+
+  test "simple map preserve key and transform inner map" do
+    # Arrange
+    data = %{
+      name: "Jhon",
+      address: %{
+        address: "1st Street",
+        city: "Big City",
+        province: "Big County",
+        country: "CA",
+        postalCode: "000-000"
+      }
+    }
+
+    one_line_address = fn value ->
+      value |> Map.values() |> Enum.join(", ")
+    end
+
+    mapping_rules = [address: one_line_address]
+
+    # Act
+    new_data = data |> ExDataMapper.map(mapping_rules)
+
+    # Assert
+    assert new_data == %{
+             address: "1st Street, Big City, Big County, CA, 000-000"
+           }
+  end
+
+  test "simple map rename key and transform inner map" do
+    # Arrange
+    data = %{
+      name: "Jhon",
+      address: %{
+        address: "1st Street",
+        city: "Big City",
+        province: "Big County",
+        country: "CA",
+        postalCode: "000-000"
+      }
+    }
+
+    one_line_address = fn value ->
+      value |> Map.values() |> Enum.join(", ")
+    end
+
+    mapping_rules = [address: {:location, one_line_address}]
+
+    # Act
+    new_data = data |> ExDataMapper.map(mapping_rules)
+
+    # Assert
+    assert new_data == %{
+             location: "1st Street, Big City, Big County, CA, 000-000"
+           }
+  end
+
+  # :address ✅
+  # {:address, :new_address} ✅
+  # {:address, [:country, :state]}
+  # {:address, {:new_address, [:country, :state]}}
+  # {:address, {:new_address, [:country, state: fn value -> String.upcase(value) end]}}
+  # {:address, {:new_address, [:country, state: :uf]}}
+  # {:address, {:new_address, [:country, state: {:uf, fn value -> String.upcase(value) end}]}}
 end
