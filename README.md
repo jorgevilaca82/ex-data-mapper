@@ -126,6 +126,7 @@ defimpl ExDataMapper2.DataMapProtocol, for: MyUser do
     ]
 
     ExDataMapper2.new_map_for(from, to, rules)
+    |> ExDataMapper2.map()
   end
 end
 
@@ -138,7 +139,6 @@ my_user_data = %{
 
 struct(MyUser, my_user_data)
 |> ExDataMapper2.DataMapProtocol.map_for(%ExternalUser{})
-|> ExDataMapper2.map()
 
 ...> %ExternalUser{
   full_name: "MY FULL NAME",
@@ -146,6 +146,49 @@ struct(MyUser, my_user_data)
   address_line: "some address line 123"
 }
 ```
+
+You also can derive an ecto schema to simplify mapping
+
+```elixir
+defmodule ExDataMapper.ExternalUser2 do
+  use Ecto.Schema
+
+  import Ecto.Changeset
+
+  @primary_key false
+  @derive {ExDataMapper.DataMapProtocol,
+           [
+             to: %ExDataMapper.MyUser{},
+             mapping_rules: [
+               :address_line,
+               {:full_name, {:name, &String.upcase/1}},
+               how_old: :age
+             ]
+           ]}
+
+  embedded_schema do
+    field(:full_name, :string)
+    field(:how_old, :integer)
+    field(:address_line, :string)
+  end
+
+  def create(external_params) do
+    %__MODULE__{}
+    |> cast(external_params, [:full_name, :how_old, :address_line])
+    |> apply_changes()
+  end
+end
+```
+
+```elixir
+external_params = %{"full_name" => "Jorge"}
+
+ExDataMapper.ExternalUser2.create(external_params)
+|> ExDataMapper.DataMapProtocol.map_for(%ExDataMapper.MyUser{})
+
+# %ExDataMapper.MyUser{name: "JORGE", age: nil, address_line: nil}
+```
+
 
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can

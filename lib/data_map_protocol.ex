@@ -13,6 +13,7 @@ defimpl ExDataMapper.DataMapProtocol, for: Any do
       defimpl ExDataMapper.DataMapProtocol, for: unquote(module) do
         def map_for(from, %to_struct{} = to) do
           ExDataMapper.new_map_for(from, to, unquote(mapping_rules))
+          |> ExDataMapper.map()
         end
       end
     end
