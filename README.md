@@ -36,7 +36,7 @@ data = %{
 
 keep = [:name, :email]
 
-ExDataMapper2.map(data, keep)
+ExDataMapper.map(data, keep)
 
 ...> %{ name: "Jhon", email: "jhon@email.com"}
 
@@ -55,7 +55,7 @@ new_email_key = :email_address
 
 keep = [:name, email: new_email_key]
 
-ExDataMapper2.map(data, keep)
+ExDataMapper.map(data, keep)
 
 ...> %{ name: "Jhon", email_address: "jhon@email.com"}
 
@@ -74,7 +74,7 @@ data = %{
 
 keep = [{:name, &String.upcase/1}, :email]
 
-ExDataMapper2.map(data, keep)
+ExDataMapper.map(data, keep)
 
 ...> %{name: "JHON", email: "jhon@email.com"}
 ```
@@ -93,7 +93,7 @@ keep = [
   :email
 ]
 
-ExDataMapper2.map(data, keep)
+ExDataMapper.map(data, keep)
 
 ...> %{full_name: "JHON", email: "jhon@email.com"}
 ```
@@ -115,7 +115,7 @@ end
 
 
 # Implement the protocol for your internal struct
-defimpl ExDataMapper2.DataMapProtocol, for: MyUser do
+defimpl ExDataMapper.DataMapProtocol, for: MyUser do
   defp upcase(value), do: String.upcase(value)
 
   def map_for(from, %ExternalUser{} = to) do
@@ -125,8 +125,8 @@ defimpl ExDataMapper2.DataMapProtocol, for: MyUser do
       age: :how_old
     ]
 
-    ExDataMapper2.new_map_for(from, to, rules)
-    |> ExDataMapper2.map()
+    ExDataMapper.new_map_for(from, to, rules)
+    |> ExDataMapper.map()
   end
 end
 
@@ -138,7 +138,7 @@ my_user_data = %{
 }
 
 struct(MyUser, my_user_data)
-|> ExDataMapper2.DataMapProtocol.map_for(%ExternalUser{})
+|> ExDataMapper.DataMapProtocol.map_for(%ExternalUser{})
 
 ...> %ExternalUser{
   full_name: "MY FULL NAME",

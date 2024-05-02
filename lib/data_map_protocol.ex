@@ -24,7 +24,7 @@ defimpl ExDataMapper.DataMapProtocol, for: Any do
       protocol: @protocol,
       value: from,
       description: """
-      ExDataMapper2.DataMapProtocol protocol must always be explicitly implemented.
+      ExDataMapper.DataMapProtocol protocol must always be explicitly implemented.
       """
   end
 end
